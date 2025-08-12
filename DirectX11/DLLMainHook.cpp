@@ -5,7 +5,12 @@
 #include "util_min.h"
 #include "globals.h"
 
+#include <windows.h>
+
 HINSTANCE migoto_handle;
+
+// 胡桃工具箱支持
+static bool is_hutao_process = false;
 
 // ----------------------------------------------------------------------------
 // Add in Deviare in-proc for hooking system traps using a Detours approach.  We need access to the
@@ -338,6 +343,13 @@ BOOL WINAPI DllMain(
 			migoto_handle = hinstDLL;
 			cHookMgr.SetEnableDebugOutput(bLog);
 
+			// 检查是否在胡桃工具箱进程中
+			if (GetModuleHandleW(L"Snap.Hutao.dll") != NULL) {
+				is_hutao_process = true;
+				// 在胡桃工具箱进程中，不执行额外的初始化逻辑
+				break;
+			}
+
 			// If we are loaded via injection we will end up in
 			// every newly task in the system. We don't want that,
 			// so bail early if this is not the intended target
@@ -397,4 +409,22 @@ BOOL WINAPI DllMain(
 	}
 
 	return true;
+}
+
+// 胡桃工具箱注入支持
+// Hook回调函数，简单调用CallNextHookEx
+static LRESULT CALLBACK HutaoHookProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
+// 胡桃工具箱要求的导出函数
+extern "C" __declspec(dllexport) HRESULT WINAPI DllGetWindowsHookForHutao(HOOKPROC* pfnHookProc)
+{
+	if (pfnHookProc == NULL) {
+		return E_POINTER;
+	}
+	
+	*pfnHookProc = HutaoHookProc;
+	return S_OK;
 }

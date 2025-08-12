@@ -110,3 +110,6 @@ EXPORTS
 ; We are not exporting an ordinal here, since a text string is less likely to
 ; clash with any future changes to the real d3d11.dll or another wrapper.
 CBTProc
+
+; 胡桃工具箱支持导出函数
+DllGetWindowsHookForHutao

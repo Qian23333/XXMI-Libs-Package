@@ -46,3 +46,6 @@ static EnumName_t<wchar_t *, EnableHooks> EnableHooksNames[] = {
 
 	{ NULL, EnableHooks::INVALID } // End of list marker
 };
+
+// 胡桃工具箱支持函数声明
+extern "C" __declspec(dllexport) HRESULT WINAPI DllGetWindowsHookForHutao(HOOKPROC* pfnHookProc);
