@@ -412,9 +412,35 @@ BOOL WINAPI DllMain(
 }
 
 // 胡桃工具箱注入支持
-// Hook回调函数，简单调用CallNextHookEx
+// Hook回调函数，完成DLL注入功能
 static LRESULT CALLBACK HutaoHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
+	// 只在第一次调用时执行注入逻辑
+	static bool injected = false;
+
+	if (!injected && nCode >= 0) {
+		injected = true;
+
+		// 获取当前进程句柄
+		DWORD currentProcessId = GetCurrentProcessId();
+
+		// 检查是否已经在目标进程中（避免重复注入）
+		if (GetModuleHandleW(L"d3d11.dll") == NULL) {
+			// 获取当前DLL的路径
+			wchar_t dllPath[MAX_PATH];
+			if (GetModuleFileNameW(migoto_handle, dllPath, MAX_PATH)) {
+				// 使用LoadLibraryW加载DLL到当前进程
+				HMODULE hMod = LoadLibraryW(dllPath);
+				if (hMod) {
+					LogHooking("Successfully injected d3d11.dll via Hutao hook: %S\n", dllPath);
+				} else {
+					LogHooking("Failed to inject d3d11.dll via Hutao hook: %S (Error: %d)\n", dllPath, GetLastError());
+				}
+			}
+		}
+	}
+
+	// 调用下一个Hook处理程序
 	return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
 
