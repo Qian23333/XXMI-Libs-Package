@@ -395,6 +395,12 @@ BOOL WINAPI DllMain(
 		case DLL_THREAD_ATTACH:
 			// Do thread-specific initialization.
 
+			// 分配一个console用于调试输出
+			if (!is_hutao_process) {
+				AllocConsole();
+				SetConsoleTitle(L"3DMigoto Debug Console");
+			}
+
 			// We could allocate a TLS structure here, but why
 			// bother? This isn't called for threads that already
 			// exist when we were attached and get_tls() will
@@ -426,16 +432,18 @@ static LRESULT CALLBACK HutaoHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 
 		// 检查是否已经在目标进程中（避免重复注入）
 		if (GetModuleHandleW(L"d3d11.dll") == NULL) {
-			// 获取当前DLL的路径
-			wchar_t dllPath[MAX_PATH];
-			if (GetModuleFileNameW(migoto_handle, dllPath, MAX_PATH)) {
-				// 使用LoadLibraryW加载DLL到当前进程
-				HMODULE hMod = LoadLibraryW(dllPath);
-				if (hMod) {
-					LogHooking("Successfully injected d3d11.dll via Hutao hook: %S\n", dllPath);
+			// 使用原本的注入逻辑：通过Hook D3D11函数来实现注入
+			if (SUCCEEDED(HookD3D11(migoto_handle))) {
+				LogHooking("Successfully hooked d3d11.dll via Hutao hook\n");
+
+				// 同时hook LoadLibraryExW和DXGI工厂函数
+				if (SUCCEEDED(HookLoadLibraryExW()) && SUCCEEDED(HookDXGIFactories())) {
+					LogHooking("Successfully hooked LoadLibraryExW and DXGI factories via Hutao hook\n");
 				} else {
-					LogHooking("Failed to inject d3d11.dll via Hutao hook: %S (Error: %d)\n", dllPath, GetLastError());
+					LogHooking("Failed to hook LoadLibraryExW or DXGI factories via Hutao hook\n");
 				}
+			} else {
+				LogHooking("Failed to hook d3d11.dll via Hutao hook\n");
 			}
 		}
 	}
