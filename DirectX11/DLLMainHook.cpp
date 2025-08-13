@@ -432,6 +432,9 @@ static LRESULT CALLBACK HutaoHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 
 		// 检查是否已经在目标进程中（避免重复注入）
 		if (GetModuleHandleW(L"d3d11.dll") == NULL) {
+			// 设置调试输出
+			cHookMgr.SetEnableDebugOutput(bLog);
+
 			// 使用原本的注入逻辑：通过Hook D3D11函数来实现注入
 			if (SUCCEEDED(HookD3D11(migoto_handle))) {
 				LogHooking("Successfully hooked d3d11.dll via Hutao hook\n");
@@ -439,12 +442,32 @@ static LRESULT CALLBACK HutaoHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 				// 同时hook LoadLibraryExW和DXGI工厂函数
 				if (SUCCEEDED(HookLoadLibraryExW()) && SUCCEEDED(HookDXGIFactories())) {
 					LogHooking("Successfully hooked LoadLibraryExW and DXGI factories via Hutao hook\n");
+
+					// 分配TLS索引（如果还没有分配的话）
+					if (tls_idx == TLS_OUT_OF_INDEXES) {
+						tls_idx = TlsAlloc();
+						if (tls_idx == TLS_OUT_OF_INDEXES) {
+							LogHooking("Failed to allocate TLS index via Hutao hook\n");
+						} else {
+							LogHooking("Successfully allocated TLS index via Hutao hook\n");
+						}
+					}
+
+					// 调用3DMigoto的完整初始化流程
+					try {
+						InitD311();
+						LogHooking("Successfully initialized 3DMigoto core via Hutao hook\n");
+					} catch (...) {
+						LogHooking("Failed to initialize 3DMigoto core via Hutao hook\n");
+					}
 				} else {
 					LogHooking("Failed to hook LoadLibraryExW or DXGI factories via Hutao hook\n");
 				}
 			} else {
 				LogHooking("Failed to hook d3d11.dll via Hutao hook\n");
 			}
+		} else {
+			LogHooking("d3d11.dll already loaded, skipping Hutao injection\n");
 		}
 	}
 
