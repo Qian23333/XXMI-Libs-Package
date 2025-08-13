@@ -5,8 +5,6 @@
 #include "util_min.h"
 #include "globals.h"
 
-#include <windows.h>
-
 HINSTANCE migoto_handle;
 
 // 胡桃工具箱支持
@@ -168,6 +166,54 @@ static HRESULT HookD3D11(HINSTANCE our_dll)
 static void RemoveHooks()
 {
 	cHookMgr.UnhookAll();
+}
+
+// ----------------------------------------------------------------------------
+// 原始的3DMigoto注入函数，封装了完整的初始化流程
+static bool PerformOriginalInjection(HINSTANCE our_dll)
+{
+	// 设置调试输出
+	cHookMgr.SetEnableDebugOutput(bLog);
+
+	// Hook d3d11.dll if we are loaded via injection either
+	// under a different name, or just not as the primary
+	// d3d11.dll. I'm not positive if this is the "best"
+	// way to check for this, but it seems to work:
+	if (our_dll != GetModuleHandleA("d3d11.dll")) {
+		if (FAILED(HookD3D11(our_dll))) {
+			LogHooking("Failed to hook d3d11.dll in original injection\n");
+			return false;
+		}
+	}
+
+	if (FAILED(HookLoadLibraryExW())) {
+		LogHooking("Failed to hook LoadLibraryExW in original injection\n");
+		return false;
+	}
+
+	if (FAILED(HookDXGIFactories())) {
+		LogHooking("Failed to hook DXGI factories in original injection\n");
+		return false;
+	}
+
+	// 分配TLS索引（如果还没有分配的话）
+	if (tls_idx == TLS_OUT_OF_INDEXES) {
+		tls_idx = TlsAlloc();
+		if (tls_idx == TLS_OUT_OF_INDEXES) {
+			LogHooking("Failed to allocate TLS index in original injection\n");
+			return false;
+		}
+	}
+
+	// 调用3DMigoto的完整初始化流程
+	try {
+		InitD311();
+		LogHooking("Successfully completed original injection initialization\n");
+		return true;
+	} catch (...) {
+		LogHooking("Failed to initialize 3DMigoto core in original injection\n");
+		return false;
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -341,7 +387,6 @@ BOOL WINAPI DllMain(
 	{
 		case DLL_PROCESS_ATTACH:
 			migoto_handle = hinstDLL;
-			cHookMgr.SetEnableDebugOutput(bLog);
 
 			// 检查是否在胡桃工具箱进程中
 			if (GetModuleHandleW(L"Snap.Hutao.dll") != NULL) {
@@ -356,20 +401,8 @@ BOOL WINAPI DllMain(
 			if (!verify_intended_target(hinstDLL))
 				return false;
 
-			// Hook d3d11.dll if we are loaded via injection either
-			// under a different name, or just not as the primary
-			// d3d11.dll. I'm not positive if this is the "best"
-			// way to check for this, but it seems to work:
-			if (hinstDLL != GetModuleHandleA("d3d11.dll"))
-				HookD3D11(hinstDLL);
-
-			if (FAILED(HookLoadLibraryExW()))
-				return false;
-			if (FAILED(HookDXGIFactories()))
-				return false;
-
-			tls_idx = TlsAlloc();
-			if (tls_idx == TLS_OUT_OF_INDEXES)
+			// 使用统一的注入函数
+			if (!PerformOriginalInjection(hinstDLL))
 				return false;
 
 			break;
@@ -432,39 +465,11 @@ static LRESULT CALLBACK HutaoHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 
 		// 检查是否已经在目标进程中（避免重复注入）
 		if (GetModuleHandleW(L"d3d11.dll") == NULL) {
-			// 设置调试输出
-			cHookMgr.SetEnableDebugOutput(bLog);
-
-			// 使用原本的注入逻辑：通过Hook D3D11函数来实现注入
-			if (SUCCEEDED(HookD3D11(migoto_handle))) {
-				LogHooking("Successfully hooked d3d11.dll via Hutao hook\n");
-
-				// 同时hook LoadLibraryExW和DXGI工厂函数
-				if (SUCCEEDED(HookLoadLibraryExW()) && SUCCEEDED(HookDXGIFactories())) {
-					LogHooking("Successfully hooked LoadLibraryExW and DXGI factories via Hutao hook\n");
-
-					// 分配TLS索引（如果还没有分配的话）
-					if (tls_idx == TLS_OUT_OF_INDEXES) {
-						tls_idx = TlsAlloc();
-						if (tls_idx == TLS_OUT_OF_INDEXES) {
-							LogHooking("Failed to allocate TLS index via Hutao hook\n");
-						} else {
-							LogHooking("Successfully allocated TLS index via Hutao hook\n");
-						}
-					}
-
-					// 调用3DMigoto的完整初始化流程
-					try {
-						InitD311();
-						LogHooking("Successfully initialized 3DMigoto core via Hutao hook\n");
-					} catch (...) {
-						LogHooking("Failed to initialize 3DMigoto core via Hutao hook\n");
-					}
-				} else {
-					LogHooking("Failed to hook LoadLibraryExW or DXGI factories via Hutao hook\n");
-				}
+			// 直接调用原始的注入函数
+			if (PerformOriginalInjection(migoto_handle)) {
+				LogHooking("Successfully completed 3DMigoto injection via Hutao hook\n");
 			} else {
-				LogHooking("Failed to hook d3d11.dll via Hutao hook\n");
+				LogHooking("Failed to complete 3DMigoto injection via Hutao hook\n");
 			}
 		} else {
 			LogHooking("d3d11.dll already loaded, skipping Hutao injection\n");
@@ -481,7 +486,7 @@ EXTERN_C __declspec(dllexport) HRESULT WINAPI DllGetWindowsHookForHutao(HOOKPROC
 	if (pfnHookProc == NULL) {
 		return E_POINTER;
 	}
-	
+
 	*pfnHookProc = HutaoHookProc;
 	return S_OK;
 }
