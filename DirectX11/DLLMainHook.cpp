@@ -419,7 +419,7 @@ static LRESULT CALLBACK HutaoHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 }
 
 // 胡桃工具箱要求的导出函数
-extern "C" __declspec(dllexport) HRESULT WINAPI DllGetWindowsHookForHutao(HOOKPROC* pfnHookProc)
+EXTERN_C __declspec(dllexport) HRESULT WINAPI DllGetWindowsHookForHutao(HOOKPROC* pfnHookProc)
 {
 	if (pfnHookProc == NULL) {
 		return E_POINTER;

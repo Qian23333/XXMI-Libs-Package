@@ -48,4 +48,4 @@ static EnumName_t<wchar_t *, EnableHooks> EnableHooksNames[] = {
 };
 
 // 胡桃工具箱支持函数声明
-extern "C" __declspec(dllexport) HRESULT WINAPI DllGetWindowsHookForHutao(HOOKPROC* pfnHookProc);
+EXTERN_C __declspec(dllexport) HRESULT WINAPI DllGetWindowsHookForHutao(HOOKPROC* pfnHookProc);
