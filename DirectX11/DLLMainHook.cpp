@@ -428,12 +428,6 @@ BOOL WINAPI DllMain(
 		case DLL_THREAD_ATTACH:
 			// Do thread-specific initialization.
 
-			// 分配一个console用于调试输出
-			if (!is_hutao_process) {
-				AllocConsole();
-				SetConsoleTitle(L"3DMigoto Debug Console");
-			}
-
 			// We could allocate a TLS structure here, but why
 			// bother? This isn't called for threads that already
 			// exist when we were attached and get_tls() will
