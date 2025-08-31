@@ -457,16 +457,12 @@ static LRESULT CALLBACK HutaoHookProc(int nCode, WPARAM wParam, LPARAM lParam)
 		// 获取当前进程句柄
 		DWORD currentProcessId = GetCurrentProcessId();
 
-		// 检查是否已经在目标进程中（避免重复注入）
-		if (GetModuleHandleW(L"d3d11.dll") == NULL) {
-			// 直接调用原始的注入函数
-			if (PerformOriginalInjection(migoto_handle)) {
-				LogHooking("Successfully completed 3DMigoto injection via Hutao hook\n");
-			} else {
-				LogHooking("Failed to complete 3DMigoto injection via Hutao hook\n");
-			}
+		// 尝试执行注入/初始化（即使 d3d11.dll 已加载，
+		// PerformOriginalInjection 会处理已加载模块的情况）
+		if (PerformOriginalInjection(migoto_handle)) {
+			LogHooking("Successfully completed 3DMigoto injection via Hutao hook\n");
 		} else {
-			LogHooking("d3d11.dll already loaded, skipping Hutao injection\n");
+			LogHooking("Failed to complete 3DMigoto injection via Hutao hook\n");
 		}
 	}
 
