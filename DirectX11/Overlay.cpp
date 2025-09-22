@@ -740,7 +740,7 @@ static void CreateInfoString(wchar_t* info)
 	const wchar_t* marking_mode;
 	marking_mode = lookup_enum_name(MarkingModeNames, G->marking_mode);
 
-	swprintf_s(info, maxstring, L"Shader Hunting Mode (Marking: %ls)", marking_mode);
+	swprintf_s(info, maxstring, L"Hunting Mode (Marking: %ls)", marking_mode);
 }
 
 void Overlay::DrawOverlay(void)
